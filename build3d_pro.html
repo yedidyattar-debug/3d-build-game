@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>3D Build Game PRO</title>
+<style>
+body { margin:0; overflow:hidden; }
+#crosshair{
+  position:fixed;
+  top:50%;
+  left:50%;
+  width:10px;
+  height:10px;
+  margin-left:-5px;
+  margin-top:-5px;
+  border:2px solid white;
+  border-radius:50%;
+}
+</style>
+</head>
+<body>
+<div id="crosshair"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<script>
+let scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87CEEB);
+
+let camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+
+let renderer = new THREE.WebGLRenderer();
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+// אור
+let light = new THREE.DirectionalLight(0xffffff,1);
+light.position.set(10,20,10);
+scene.add(light);
+
+// רצפה
+let floorGeo = new THREE.BoxGeometry(100,1,100);
+let floorMat = new THREE.MeshLambertMaterial({color:0x228B22});
+let floor = new THREE.Mesh(floorGeo,floorMat);
+floor.position.y=-0.5;
+scene.add(floor);
+
+// בלוקים
+let cubeGeo = new THREE.BoxGeometry(1,1,1);
+let materials = [
+  new THREE.MeshLambertMaterial({color:0x8B4513}), // עץ
+  new THREE.MeshLambertMaterial({color:0x888888}), // אבן
+  new THREE.MeshLambertMaterial({color:0xFFD700})  // זהב
+];
+
+let currentBlock = 0;
+
+document.addEventListener("keydown", e=>{
+  if(e.key==="1") currentBlock=0;
+  if(e.key==="2") currentBlock=1;
+  if(e.key==="3") currentBlock=2;
+});
+
+// מצלמה
+camera.position.set(0,2,5);
+
+// שליטה
+let velocityY = 0;
+let gravity = -0.01;
+let canJump = false;
+
+let keys = {};
+document.addEventListener("keydown", e=>keys[e.code]=true);
+document.addEventListener("keyup", e=>keys[e.code]=false);
+
+document.body.requestPointerLock = document.body.requestPointerLock || document.body.mozRequestPointerLock;
+document.onclick = ()=>document.body.requestPointerLock();
+
+// תנועה
+function move(){
+  let speed=0.1;
+  if(keys["KeyW"]) camera.position.z -= speed;
+  if(keys["KeyS"]) camera.position.z += speed;
+  if(keys["KeyA"]) camera.position.x -= speed;
+  if(keys["KeyD"]) camera.position.x += speed;
+
+  velocityY += gravity;
+  camera.position.y += velocityY;
+
+  if(camera.position.y < 2){
+    velocityY = 0;
+    camera.position.y = 2;
+    canJump = true;
+  }
+
+  if(keys["Space"] && canJump){
+    velocityY = 0.2;
+    canJump = false;
+  }
+}
+
+// Raycaster
+let raycaster = new THREE.Raycaster();
+
+window.addEventListener("mousedown", function(event){
+  raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
+  let intersects = raycaster.intersectObjects(scene.children);
+
+  if(intersects.length>0){
+    let obj = intersects[0].object;
+
+    if(event.button===0 && obj!==floor){
+      scene.remove(obj);
+    }
+
+    if(event.button===2){
+      let point = intersects[0].point;
+      let cube = new THREE.Mesh(cubeGeo, materials[currentBlock]);
+      cube.position.set(
+        Math.round(point.x),
+        Math.round(point.y)+1,
+        Math.round(point.z)
+      );
+      scene.add(cube);
+    }
+  }
+});
+
+window.addEventListener("contextmenu", e=>e.preventDefault());
+
+// לולאה
+function animate(){
+  requestAnimationFrame(animate);
+  move();
+  renderer.render(scene,camera);
+}
+animate();
+</script>
+</body>
+</html>
